@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>⚽ MonÉquipe 8v8</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Figtree:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+<style>
+:root{--gold:#f5c518;--bg:#0f1923;--surface:#16232f;--surface2:#1d2f3f;--border:rgba(255,255,255,0.08);--text:#e8edf2;--muted:#7a8fa0;--green-dark:#0a3d1f}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Figtree',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 1.5rem;display:flex;align-items:center;justify-content:space-between;height:58px;position:sticky;top:0;z-index:100}
+.logo{font-family:'Bebas Neue',cursive;font-size:26px;letter-spacing:2px;color:var(--gold)}
+.logo em{color:#fff;font-style:normal}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:#4caf50;display:inline-block;margin-left:8px;transition:background .3s}
+.sync-dot.syncing{background:var(--gold);animation:pulse .8s infinite}
+.sync-dot.error{background:#e53e3e}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.tabs{display:flex;background:var(--surface);border-bottom:1px solid var(--border);padding:0 1.5rem;gap:2px}
+.tab-btn{font-family:'Figtree',sans-serif;font-weight:700;font-size:14px;padding:13px 18px;background:none;border:none;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;transition:all .2s}
+.tab-btn.active{color:var(--gold);border-bottom-color:var(--gold)}
+.view{display:none}.view.active{display:block}
+.page{padding:1.5rem}
+.btn{font-family:'Figtree',sans-serif;font-weight:700;font-size:14px;padding:9px 18px;border-radius:8px;border:none;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:6px}
+.btn-gold{background:var(--gold);color:#1a1200}.btn-gold:hover{background:#e8b800;transform:translateY(-1px)}
+.btn-ghost{background:rgba(255,255,255,.07);color:var(--text);border:1px solid var(--border)}.btn-ghost:hover{background:rgba(255,255,255,.13)}
+.btn-sm{padding:6px 12px;font-size:13px}
+.btn-danger{background:rgba(220,50,50,.12);color:#ff6b6b;border:1px solid rgba(220,50,50,.25)}.btn-danger:hover{background:rgba(220,50,50,.22)}
+.players-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem}
+.players-header h2{font-family:'Bebas Neue',cursive;font-size:24px;letter-spacing:1px}
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:20px}
+
+/* ===== FIFA CARD ===== */
+.fifa-card{width:170px;height:260px;border-radius:14px;position:relative;transition:transform .2s,box-shadow .2s;flex-shrink:0;cursor:pointer}
+.fifa-card:hover{transform:translateY(-6px) scale(1.03);box-shadow:0 20px 40px rgba(0,0,0,.7)}
+.card-face{width:100%;height:100%;border-radius:14px;overflow:hidden;position:relative;border:2px solid rgba(245,197,24,.5);display:flex;flex-direction:column}
+.card-face.gold-card{background:linear-gradient(160deg,#c9950a 0%,#8b6508 40%,#5c4100 70%,#3a2800 100%);border-color:rgba(245,220,100,.85)}
+.card-face.silver-card{background:linear-gradient(160deg,#8a9bb0 0%,#5a6a7a 40%,#3a4a5a 100%);border-color:rgba(180,200,220,.6)}
+.card-face.bronze-card{background:linear-gradient(160deg,#b87333 0%,#8b5a2b 40%,#5c3a1a 100%);border-color:rgba(200,150,100,.6)}
+.card-face::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.1) 0%,transparent 45%,rgba(255,255,255,.04) 100%);pointer-events:none;z-index:1}
+
+/* Card top section */
+.card-top{display:flex;padding:8px 10px 0;position:relative;z-index:2;align-items:flex-start;gap:6px}
+.card-rating-block{display:flex;flex-direction:column;align-items:center;min-width:36px}
+.card-rating{font-family:'Bebas Neue',cursive;font-size:34px;line-height:1;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.5)}
+.card-pos-label{font-family:'Bebas Neue',cursive;font-size:13px;letter-spacing:1px;color:rgba(255,255,255,.85);line-height:1}
+.card-badges{display:flex;flex-direction:column;gap:4px;margin-top:2px}
+.card-flag,.card-club{width:28px;height:20px;border-radius:3px;object-fit:cover;display:block;border:1px solid rgba(255,255,255,.2)}
+.card-club{width:28px;height:28px;border-radius:4px;object-fit:contain;background:transparent;border:none}
+.card-flag-placeholder,.card-club-placeholder{width:28px;height:20px;border-radius:3px;background:rgba(255,255,255,.1);border:1px dashed rgba(255,255,255,.2)}
+.card-club-placeholder{height:28px;border-radius:4px}
+
+/* Card photo */
+.card-photo-area{flex:1;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;margin:0 6px}
+.card-photo{width:110px;height:110px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.2);position:relative;z-index:2}
+.card-initials{width:110px;height:110px;border-radius:50%;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:40px;font-weight:900;color:rgba(255,255,255,.9);border:2px solid rgba(255,255,255,.18);position:relative;z-index:2}
+
+/* Card bottom */
+.card-bottom{padding:6px 8px 8px;background:rgba(0,0,0,.4);position:relative;z-index:2}
+.card-name{font-family:'Bebas Neue',cursive;font-size:18px;letter-spacing:2px;color:#fff;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1;margin-bottom:4px;text-shadow:0 1px 4px rgba(0,0,0,.6)}
+.card-divider{width:80%;height:1px;background:rgba(245,197,24,.4);margin:0 auto 5px}
+.card-stats{display:grid;grid-template-columns:1fr 1fr;gap:1px 8px;padding:0 4px}
+.stat-item{display:flex;align-items:center;gap:3px}
+.stat-val{font-family:'Bebas Neue',cursive;font-size:13px;color:#fff;min-width:18px;text-align:right;line-height:1}
+.stat-lbl{font-size:8px;color:rgba(255,255,255,.6);font-weight:700;letter-spacing:.5px;line-height:1}
+.card-number-badge{position:absolute;top:6px;right:8px;font-family:'Bebas Neue',cursive;font-size:11px;color:rgba(255,255,255,.6);z-index:3}
+
+/* Card actions */
+.card-wrapper{position:relative;display:inline-block}
+.card-delete{position:absolute;top:-7px;right:-7px;width:22px;height:22px;border-radius:50%;background:#e53e3e;border:2px solid var(--bg);color:#fff;font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:10;opacity:0;transition:opacity .2s}
+.card-wrapper:hover .card-delete{opacity:1}
+.card-edit{position:absolute;top:-7px;left:-7px;width:22px;height:22px;border-radius:50%;background:var(--gold);border:2px solid var(--bg);color:#1a1200;font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:10;opacity:0;transition:opacity .2s}
+.card-wrapper:hover .card-edit{opacity:1}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);display:none;align-items:center;justify-content:center;z-index:200;backdrop-filter:blur(4px)}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:1.5rem;width:480px;max-width:95vw;max-height:94vh;overflow-y:auto;animation:mIn .2s ease}
+@keyframes mIn{from{opacity:0;transform:scale(.95) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.modal h3{font-family:'Bebas Neue',cursive;font-size:22px;letter-spacing:1px;margin-bottom:1rem;color:var(--gold)}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-group{margin-bottom:12px}
+.form-group label{display:block;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
+.form-group input,.form-group select{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 11px;color:var(--text);font-family:'Figtree',sans-serif;font-size:14px;outline:none;transition:border-color .2s}
+.form-group input:focus,.form-group select:focus{border-color:var(--gold)}
+.form-group select option{background:var(--surface2)}
+.modal-actions{display:flex;gap:10px;margin-top:14px}
+.modal-actions .btn{flex:1;justify-content:center;padding:11px}
+
+/* Upload zones */
+.upload-zones{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.upload-zone{display:flex;flex-direction:column;align-items:center;gap:6px}
+.upload-zone label{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);text-align:center}
+.upload-circle{width:70px;height:70px;border-radius:50%;background:var(--surface2);border:2px dashed rgba(245,197,24,.35);display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;transition:border-color .2s;flex-shrink:0}
+.upload-circle:hover{border-color:var(--gold)}
+.upload-circle img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.upload-square{width:60px;height:60px;border-radius:10px;background:var(--surface2);border:2px dashed rgba(245,197,24,.35);display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;transition:border-color .2s;flex-shrink:0}
+.upload-square:hover{border-color:var(--gold)}
+.upload-square img{width:100%;height:100%;object-fit:contain;border-radius:8px}
+.upload-hint-sm{font-size:10px;color:var(--muted);text-align:center;line-height:1.3}
+
+/* Stats grid in modal */
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.stat-input-group{display:flex;flex-direction:column;gap:4px}
+.stat-input-group label{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
+.stat-input-group input{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-family:'Bebas Neue',cursive;font-size:20px;outline:none;width:100%;text-align:center;transition:border-color .2s}
+.stat-input-group input:focus{border-color:var(--gold)}
+
+.pos-picker{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.pos-btn{padding:5px 11px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'Figtree',sans-serif;font-weight:700;font-size:13px;cursor:pointer;transition:all .15s}
+.pos-btn:hover,.pos-btn.selected{background:rgba(245,197,24,.15);border-color:var(--gold);color:var(--gold)}
+.modal-preview{display:flex;justify-content:center;margin-bottom:1.25rem}
+.section-title{font-family:'Bebas Neue',cursive;font-size:16px;letter-spacing:1px;color:rgba(255,255,255,.5);margin-bottom:8px;margin-top:4px}
+
+/* PITCH */
+.pitch-controls{display:flex;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap}
+.pitch-controls label{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
+.pitch-controls select{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-family:'Figtree',sans-serif;font-size:14px;font-weight:600;outline:none;cursor:pointer}
+.pitch-container{display:grid;grid-template-columns:1fr 205px;gap:16px;align-items:start}
+.pitch-wrapper{background:var(--green-dark);border-radius:14px;padding:10px;border:2px solid rgba(255,255,255,.06);box-shadow:0 0 50px rgba(0,0,0,.55),inset 0 0 30px rgba(0,0,0,.3);aspect-ratio:.64;position:relative;overflow:hidden}
+.pitch-wrapper::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(to bottom,transparent 0,transparent 38px,rgba(0,0,0,.07) 38px,rgba(0,0,0,.07) 76px);pointer-events:none;z-index:0}
+.pitch-svg{position:absolute;inset:0;width:100%;height:100%;z-index:1;pointer-events:none}
+.pitch-slots{position:absolute;inset:0;z-index:2}
+.pos-slot{position:absolute;transform:translate(-50%,-50%);width:76px;display:flex;flex-direction:column;align-items:center;cursor:pointer;transition:all .2s}
+.pos-slot.has-player{cursor:default}
+
+/* Mini pitch card */
+.pitch-card{width:66px;height:96px;border-radius:8px;position:relative;overflow:hidden;border:1.5px solid rgba(245,197,24,.6);box-shadow:0 4px 14px rgba(0,0,0,.5);display:flex;flex-direction:column;align-items:center;transition:transform .2s}
+.pitch-card:hover{transform:scale(1.1)}
+.pitch-card.gold{background:linear-gradient(145deg,#b8860b,#5c4100);border-color:rgba(245,220,100,.8)}
+.pitch-card.silver{background:linear-gradient(145deg,#6e7a8a,#2d3748)}
+.pitch-card.bronze{background:linear-gradient(145deg,#b87333,#5c3a1a)}
+.pitch-card.blue{background:linear-gradient(145deg,#1a3a6e,#081628)}
+.pitch-card-inner{display:flex;flex-direction:column;align-items:center;width:100%;height:100%;position:relative}
+.pitch-card-rating{position:absolute;top:2px;left:4px;font-family:'Bebas Neue',cursive;font-size:13px;color:var(--gold);line-height:1}
+.pitch-card-photo{width:38px;height:38px;border-radius:50%;object-fit:cover;margin-top:8px;border:1.5px solid rgba(255,255,255,.2);flex-shrink:0}
+.pitch-card-initials{width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:rgba(255,255,255,.9);margin-top:8px;border:1.5px solid rgba(255,255,255,.18);flex-shrink:0}
+.pitch-card-flag{width:18px;height:13px;object-fit:cover;border-radius:2px;margin-top:3px}
+.pitch-card-bottom{width:100%;text-align:center;padding:2px 3px 3px;background:rgba(0,0,0,.55);margin-top:auto}
+.pitch-card-name{font-family:'Bebas Neue',cursive;font-size:10px;letter-spacing:1px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pitch-card-pos{font-size:7px;color:var(--gold);font-weight:700;letter-spacing:.5px}
+
+.empty-slot-circle{width:50px;height:50px;border-radius:50%;border:2px dashed rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.28);font-size:18px;transition:all .2s;background:rgba(255,255,255,.03)}
+.pos-slot:hover .empty-slot-circle{border-color:var(--gold);color:var(--gold);background:rgba(245,197,24,.08)}
+.slot-label{font-family:'Bebas Neue',cursive;font-size:11px;letter-spacing:1px;color:rgba(255,255,255,.45);margin-top:2px;text-shadow:0 1px 3px rgba(0,0,0,.9)}
+.slot-remove{position:absolute;top:-7px;right:-7px;width:18px;height:18px;border-radius:50%;background:#e53e3e;border:2px solid var(--bg);color:#fff;font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:10;opacity:0;transition:opacity .2s}
+.pos-slot:hover .slot-remove{opacity:1}
+
+/* BENCH */
+.bench-panel{background:var(--surface);border-radius:12px;border:1px solid var(--border);padding:.9rem}
+.bench-title{font-family:'Bebas Neue',cursive;font-size:17px;letter-spacing:1px;color:var(--gold);margin-bottom:10px;text-align:center}
+.bench-list{display:flex;flex-direction:column;gap:7px;max-height:520px;overflow-y:auto}
+.bench-item{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:8px;background:var(--surface2);border:1px solid var(--border)}
+.bench-avatar{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:rgba(255,255,255,.8);flex-shrink:0;overflow:hidden}
+.bench-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.bench-info{flex:1;min-width:0}
+.bench-name{font-family:'Bebas Neue',cursive;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bench-pos{font-size:10px;color:var(--muted);font-weight:600}
+.bench-num{font-family:'Bebas Neue',cursive;font-size:16px;color:var(--gold)}
+.bench-empty{text-align:center;color:var(--muted);font-size:12px;padding:16px 0}
+.assign-list{display:flex;flex-direction:column;gap:7px;max-height:300px;overflow-y:auto}
+.assign-item{display:flex;align-items:center;gap:10px;padding:9px;border-radius:8px;border:1px solid var(--border);cursor:pointer;transition:all .15s}
+.assign-item:hover{border-color:var(--gold);background:rgba(245,197,24,.05)}
+
+.empty-state{text-align:center;padding:50px 20px;color:var(--muted)}
+.empty-state .emoji{font-size:54px;margin-bottom:14px}
+.empty-state h3{font-family:'Bebas Neue',cursive;font-size:22px;color:var(--text);margin-bottom:6px}
+.empty-state p{font-size:14px;margin-bottom:18px}
+.toast{position:fixed;bottom:20px;right:20px;background:var(--surface);border:1px solid var(--gold);border-radius:9px;padding:11px 18px;font-weight:600;font-size:14px;color:var(--gold);z-index:999;animation:tIn .3s ease;pointer-events:none}
+@keyframes tIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.loading-screen{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:500;gap:16px}
+.loading-screen .logo-big{font-family:'Bebas Neue',cursive;font-size:48px;color:var(--gold)}
+.spinner{width:36px;height:36px;border:3px solid rgba(245,197,24,.2);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:4px}
+@media(max-width:680px){.pitch-container{grid-template-columns:1fr}.form-row{grid-template-columns:1fr}.stats-grid{grid-template-columns:repeat(3,1fr)}}
+</style>
+</head>
+<body>
+
+<div class="loading-screen" id="loading-screen">
+  <div class="logo-big">⚽ MonÉquipe</div>
+  <div class="spinner"></div>
+  <div style="color:var(--muted);font-size:14px">Connexion...</div>
+</div>
+
+<header>
+  <div class="logo">⚽ <em>MON</em>ÉQUIPE <span style="font-size:14px;color:var(--muted);font-family:'Figtree';font-weight:700;letter-spacing:0;margin-left:6px">8v8</span>
+    <span class="sync-dot" id="sync-dot"></span>
+  </div>
+  <div style="display:flex;gap:8px">
+    <button class="btn btn-ghost btn-sm" onclick="copyLink()">🔗 Lien</button>
+    <button class="btn btn-danger btn-sm" onclick="resetAll()">🗑 Reset</button>
+  </div>
+</header>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('players',this)">👥 Joueurs</button>
+  <button class="tab-btn" onclick="switchTab('pitch',this)">⚽ Terrain</button>
+</div>
+
+<div id="view-players" class="view active">
+  <div class="page">
+    <div class="players-header">
+      <h2>Joueurs (<span id="count">0</span>/8)</h2>
+      <button class="btn btn-gold" onclick="openAddModal()">+ Ajouter</button>
+    </div>
+    <div id="cards-grid" class="cards-grid"></div>
+    <div id="empty-players" class="empty-state" style="display:none">
+      <div class="emoji">⚽</div>
+      <h3>Aucun joueur</h3>
+      <p>Ajoute jusqu'à 8 joueurs dans ton équipe</p>
+      <button class="btn btn-gold" onclick="openAddModal()">+ Ajouter un joueur</button>
+    </div>
+  </div>
+</div>
+
+<div id="view-pitch" class="view">
+  <div class="page">
+    <div class="pitch-controls">
+      <label>Formation</label>
+      <select onchange="changeFormation(this.value)" id="formation-select">
+        <option value="3-3-1">3-3-1</option>
+        <option value="3-2-2">3-2-2</option>
+        <option value="2-3-2">2-3-2</option>
+        <option value="2-4-1">2-4-1</option>
+        <option value="1-3-3">1-3-3</option>
+        <option value="3-1-3">3-1-3</option>
+        <option value="2-2-3">2-2-3</option>
+      </select>
+    </div>
+    <div class="pitch-container">
+      <div class="pitch-wrapper">
+        <svg class="pitch-svg" viewBox="0 0 100 156" preserveAspectRatio="none">
+          <rect x="3" y="3" width="94" height="150" fill="none" stroke="rgba(255,255,255,.16)" stroke-width=".5"/>
+          <line x1="3" y1="78" x2="97" y2="78" stroke="rgba(255,255,255,.16)" stroke-width=".5"/>
+          <circle cx="50" cy="78" r="11" fill="none" stroke="rgba(255,255,255,.16)" stroke-width=".5"/>
+          <circle cx="50" cy="78" r=".7" fill="rgba(255,255,255,.3)"/>
+          <rect x="25" y="3" width="50" height="20" fill="none" stroke="rgba(255,255,255,.14)" stroke-width=".5"/>
+          <rect x="35" y="3" width="30" height="8" fill="none" stroke="rgba(255,255,255,.14)" stroke-width=".5"/>
+          <circle cx="50" cy="17" r=".6" fill="rgba(255,255,255,.28)"/>
+          <path d="M40 23 A11 11 0 0 1 60 23" fill="none" stroke="rgba(255,255,255,.14)" stroke-width=".5"/>
+          <rect x="25" y="133" width="50" height="20" fill="none" stroke="rgba(255,255,255,.14)" stroke-width=".5"/>
+          <rect x="35" y="149" width="30" height="8" fill="none" stroke="rgba(255,255,255,.14)" stroke-width=".5"/>
+          <circle cx="50" cy="139" r=".6" fill="rgba(255,255,255,.28)"/>
+          <path d="M40 133 A11 11 0 0 0 60 133" fill="none" stroke="rgba(255,255,255,.14)" stroke-width=".5"/>
+          <rect x="37" y="0" width="26" height="3" fill="rgba(255,255,255,.08)" stroke="rgba(255,255,255,.25)" stroke-width=".5"/>
+          <rect x="37" y="153" width="26" height="3" fill="rgba(255,255,255,.08)" stroke="rgba(255,255,255,.25)" stroke-width=".5"/>
+        </svg>
+        <div class="pitch-slots" id="pitch-slots"></div>
+      </div>
+      <div class="bench-panel">
+        <div class="bench-title">🪑 Remplaçants</div>
+        <div class="bench-list" id="bench-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADD/EDIT MODAL -->
+<div class="modal-overlay" id="modal-add">
+  <div class="modal">
+    <h3 id="modal-add-title">✨ Nouveau Joueur</h3>
+    <div class="modal-preview">
+      <div id="preview-wrapper"></div>
+    </div>
+
+    <!-- PHOTOS -->
+    <div class="section-title">Photos</div>
+    <div class="upload-zones">
+      <div class="upload-zone">
+        <label>Photo</label>
+        <div class="upload-circle" id="zone-photo" onclick="triggerUpload('file-photo')">
+          <div class="upload-hint-sm">📷<br>Photo</div>
+        </div>
+        <input type="file" id="file-photo" accept="image/*" style="display:none" onchange="handleUpload(this,'photo')">
+        <button class="btn btn-danger btn-sm" id="clear-photo" style="display:none;font-size:10px;padding:3px 8px;margin-top:2px" onclick="clearImg('photo')">✕</button>
+      </div>
+      <div class="upload-zone">
+        <label>Drapeau</label>
+        <div class="upload-square" id="zone-flag" onclick="triggerUpload('file-flag')" style="border-radius:6px">
+          <div class="upload-hint-sm">🏳️<br>Pays</div>
+        </div>
+        <input type="file" id="file-flag" accept="image/*" style="display:none" onchange="handleUpload(this,'flag')">
+        <button class="btn btn-danger btn-sm" id="clear-flag" style="display:none;font-size:10px;padding:3px 8px;margin-top:2px" onclick="clearImg('flag')">✕</button>
+      </div>
+      <div class="upload-zone">
+        <label>Club</label>
+        <div class="upload-square" id="zone-club" onclick="triggerUpload('file-club')">
+          <div class="upload-hint-sm">🛡️<br>Club</div>
+        </div>
+        <input type="file" id="file-club" accept="image/*" style="display:none" onchange="handleUpload(this,'club')">
+        <button class="btn btn-danger btn-sm" id="clear-club" style="display:none;font-size:10px;padding:3px 8px;margin-top:2px" onclick="clearImg('club')">✕</button>
+      </div>
+    </div>
+
+    <!-- INFO -->
+    <div class="section-title">Infos</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Prénom / Nom</label>
+        <input type="text" id="inp-name" placeholder="Ex: Mbappé" oninput="updatePreview()">
+      </div>
+      <div class="form-group">
+        <label>Numéro</label>
+        <input type="number" id="inp-number" placeholder="10" min="1" max="99" oninput="updatePreview()">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Poste</label>
+      <div class="pos-picker">
+        <button class="pos-btn" onclick="selectPos(this,'GK')">GK</button>
+        <button class="pos-btn" onclick="selectPos(this,'CB')">CB</button>
+        <button class="pos-btn" onclick="selectPos(this,'LB')">LB</button>
+        <button class="pos-btn" onclick="selectPos(this,'RB')">RB</button>
+        <button class="pos-btn" onclick="selectPos(this,'CDM')">CDM</button>
+        <button class="pos-btn" onclick="selectPos(this,'CM')">CM</button>
+        <button class="pos-btn" onclick="selectPos(this,'CAM')">CAM</button>
+        <button class="pos-btn" onclick="selectPos(this,'LM')">LM</button>
+        <button class="pos-btn" onclick="selectPos(this,'RM')">RM</button>
+        <button class="pos-btn" onclick="selectPos(this,'LW')">LW</button>
+        <button class="pos-btn" onclick="selectPos(this,'RW')">RW</button>
+        <button class="pos-btn" onclick="selectPos(this,'ST')">ST</button>
+      </div>
+    </div>
+
+    <!-- STATS -->
+    <div class="section-title" style="margin-top:8px">Stats</div>
+    <div class="stats-grid">
+      <div class="stat-input-group"><label>PAC</label><input type="number" id="stat-pac" min="1" max="99" placeholder="80" oninput="updatePreview()"></div>
+      <div class="stat-input-group"><label>SHO</label><input type="number" id="stat-sho" min="1" max="99" placeholder="80" oninput="updatePreview()"></div>
+      <div class="stat-input-group"><label>PAS</label><input type="number" id="stat-pas" min="1" max="99" placeholder="80" oninput="updatePreview()"></div>
+      <div class="stat-input-group"><label>DRI</label><input type="number" id="stat-dri" min="1" max="99" placeholder="80" oninput="updatePreview()"></div>
+      <div class="stat-input-group"><label>DEF</label><input type="number" id="stat-def" min="1" max="99" placeholder="40" oninput="updatePreview()"></div>
+      <div class="stat-input-group"><label>PHY</label><input type="number" id="stat-phy" min="1" max="99" placeholder="75" oninput="updatePreview()"></div>
+    </div>
+
+    <input type="hidden" id="inp-pos" value="">
+    <input type="hidden" id="inp-editid" value="">
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-add')">Annuler</button>
+      <button class="btn btn-gold" id="btn-save-player" onclick="savePlayer()">✔ Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<!-- ASSIGN MODAL -->
+<div class="modal-overlay" id="modal-assign">
+  <div class="modal">
+    <h3 id="assign-title">Choisir un joueur</h3>
+    <div class="assign-list" id="assign-list"></div>
+    <div class="modal-actions" style="margin-top:14px">
+      <button class="btn btn-ghost" onclick="closeModal('modal-assign')">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDCAFp4jLMxC-dMlzG0w_KH-aZwm_3Ba1I",
+  authDomain: "mon-equipe-a80bd.firebaseapp.com",
+  projectId: "mon-equipe-a80bd",
+  storageBucket: "mon-equipe-a80bd.firebasestorage.app",
+  messagingSenderId: "195327130394",
+  appId: "1:195327130394:web:e73fd9b7dd1833e9334aa3"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const DOC_REF = doc(db, "equipe", "main");
+
+let players = [], lineup = {}, currentFormation = '3-3-1';
+let selectedPos = '', assigningSlot = null, isSaving = false;
+let imgs = { photo:'', flag:'', club:'' };
+
+const FORMATIONS = {
+  '3-3-1':[{id:'GK',x:50,y:91,label:'GK'},{id:'LB',x:18,y:74,label:'LB'},{id:'CB',x:50,y:74,label:'CB'},{id:'RB',x:82,y:74,label:'RB'},{id:'LM',x:18,y:52,label:'LM'},{id:'CM',x:50,y:50,label:'CM'},{id:'RM',x:82,y:52,label:'RM'},{id:'ST',x:50,y:28,label:'ST'}],
+  '3-2-2':[{id:'GK',x:50,y:91,label:'GK'},{id:'LB',x:18,y:74,label:'LB'},{id:'CB',x:50,y:74,label:'CB'},{id:'RB',x:82,y:74,label:'RB'},{id:'CM1',x:30,y:53,label:'CM'},{id:'CM2',x:70,y:53,label:'CM'},{id:'LW',x:22,y:30,label:'LW'},{id:'RW',x:78,y:30,label:'RW'}],
+  '2-3-2':[{id:'GK',x:50,y:91,label:'GK'},{id:'LB',x:26,y:75,label:'LB'},{id:'RB',x:74,y:75,label:'RB'},{id:'LM',x:18,y:54,label:'LM'},{id:'CM',x:50,y:52,label:'CM'},{id:'RM',x:82,y:54,label:'RM'},{id:'ST1',x:30,y:28,label:'ST'},{id:'ST2',x:70,y:28,label:'ST'}],
+  '2-4-1':[{id:'GK',x:50,y:91,label:'GK'},{id:'LB',x:26,y:75,label:'LB'},{id:'RB',x:74,y:75,label:'RB'},{id:'LM',x:14,y:54,label:'LM'},{id:'CM1',x:38,y:52,label:'CM'},{id:'CM2',x:62,y:52,label:'CM'},{id:'RM',x:86,y:54,label:'RM'},{id:'ST',x:50,y:27,label:'ST'}],
+  '1-3-3':[{id:'GK',x:50,y:91,label:'GK'},{id:'SW',x:50,y:75,label:'SW'},{id:'LM',x:18,y:56,label:'LM'},{id:'CM',x:50,y:54,label:'CM'},{id:'RM',x:82,y:56,label:'RM'},{id:'LW',x:18,y:30,label:'LW'},{id:'ST',x:50,y:27,label:'ST'},{id:'RW',x:82,y:30,label:'RW'}],
+  '3-1-3':[{id:'GK',x:50,y:91,label:'GK'},{id:'LB',x:18,y:74,label:'LB'},{id:'CB',x:50,y:74,label:'CB'},{id:'RB',x:82,y:74,label:'RB'},{id:'CM',x:50,y:55,label:'CM'},{id:'LW',x:18,y:30,label:'LW'},{id:'ST',x:50,y:27,label:'ST'},{id:'RW',x:82,y:30,label:'RW'}],
+  '2-2-3':[{id:'GK',x:50,y:91,label:'GK'},{id:'LB',x:26,y:75,label:'LB'},{id:'RB',x:74,y:75,label:'RB'},{id:'CM1',x:30,y:57,label:'CM'},{id:'CM2',x:70,y:57,label:'CM'},{id:'LW',x:16,y:31,label:'LW'},{id:'ST',x:50,y:27,label:'ST'},{id:'RW',x:84,y:31,label:'RW'}]
+};
+
+// ===== FIREBASE =====
+function setSyncStatus(s){const d=document.getElementById('sync-dot');d.className='sync-dot'+(s==='syncing'?' syncing':s==='error'?' error':'');}
+async function saveToFirebase(){if(isSaving)return;isSaving=true;setSyncStatus('syncing');try{await setDoc(DOC_REF,{players,lineup,formation:currentFormation});setSyncStatus('ok');}catch(e){setSyncStatus('error');toast('❌ Erreur de sauvegarde');}isSaving=false;}
+
+let isFirst=true;
+onSnapshot(DOC_REF,(snap)=>{
+  if(!snap.exists()){document.getElementById('loading-screen').style.display='none';renderPlayers();return;}
+  const d=snap.data();
+  players=d.players||[];lineup=d.lineup||{};currentFormation=d.formation||'3-3-1';
+  document.getElementById('formation-select').value=currentFormation;
+  if(isFirst){document.getElementById('loading-screen').style.display='none';isFirst=false;}
+  renderPlayers();
+  if(document.getElementById('view-pitch').classList.contains('active'))renderPitch();
+  setSyncStatus('ok');
+},(e)=>{console.error(e);document.getElementById('loading-screen').style.display='none';setSyncStatus('error');});
+
+// ===== HELPERS =====
+function getInitials(n){const p=n.trim().split(' ');return p.length>=2?(p[0][0]+p[1][0]).toUpperCase():n.slice(0,2).toUpperCase();}
+function calcRating(p){const s=[p.pac,p.sho,p.pas,p.dri,p.def,p.phy].filter(Boolean);return s.length?Math.round(s.reduce((a,b)=>a+b,0)/s.length):75;}
+function getCardClass(r){return r>=85?'gold-card':r>=75?'silver-card':'bronze-card';}
+function getPitchClass(r){return r>=85?'gold':r>=75?'silver':'bronze';}
+
+// ===== RENDER BIG CARD =====
+function buildCard(p, small=false){
+  const rating = calcRating(p);
+  const cls = getCardClass(rating);
+  const photoHtml = p.photo?`<img class="card-photo" src="${p.photo}" alt="">`:`<div class="card-initials">${p.name?getInitials(p.name):'?'}</div>`;
+  const flagHtml = p.flag?`<img class="card-flag" src="${p.flag}" alt="">`:`<div class="card-flag-placeholder"></div>`;
+  const clubHtml = p.club?`<img class="card-club" src="${p.club}" alt="">`:`<div class="card-club-placeholder"></div>`;
+  const w=small?120:170, h=small?183:260;
+  return `<div class="fifa-card" style="width:${w}px;height:${h}px">
+    <div class="card-face ${cls}">
+      <div class="card-number-badge">#${p.number||'?'}</div>
+      <div class="card-top">
+        <div class="card-rating-block">
+          <div class="card-rating" style="font-size:${small?'26px':'34px'}">${rating}</div>
+          <div class="card-pos-label" style="font-size:${small?'11px':'13px'}">${p.position||'?'}</div>
+        </div>
+        <div class="card-badges">${flagHtml}${clubHtml}</div>
+      </div>
+      <div class="card-photo-area">${photoHtml}</div>
+      <div class="card-bottom">
+        <div class="card-name" style="font-size:${small?'14px':'18px'}">${p.name||'?'}</div>
+        <div class="card-divider"></div>
+        <div class="card-stats">
+          <div class="stat-item"><span class="stat-val">${p.pac||'—'}</span><span class="stat-lbl">PAC</span></div>
+          <div class="stat-item"><span class="stat-val">${p.dri||'—'}</span><span class="stat-lbl">DRI</span></div>
+          <div class="stat-item"><span class="stat-val">${p.sho||'—'}</span><span class="stat-lbl">SHO</span></div>
+          <div class="stat-item"><span class="stat-val">${p.def||'—'}</span><span class="stat-lbl">DEF</span></div>
+          <div class="stat-item"><span class="stat-val">${p.pas||'—'}</span><span class="stat-lbl">PAS</span></div>
+          <div class="stat-item"><span class="stat-val">${p.phy||'—'}</span><span class="stat-lbl">PHY</span></div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function buildMiniCard(p){
+  const rating=calcRating(p);
+  const cls=getPitchClass(rating);
+  const photoHtml=p.photo?`<img class="pitch-card-photo" src="${p.photo}" alt="">`:`<div class="pitch-card-initials">${p.name?getInitials(p.name):'?'}</div>`;
+  const flagHtml=p.flag?`<img class="pitch-card-flag" src="${p.flag}" alt="">`:'';
+  return `<div class="pitch-card ${cls}">
+    <div class="pitch-card-inner">
+      <span class="pitch-card-rating">${rating}</span>
+      ${photoHtml}
+      ${flagHtml}
+      <div class="pitch-card-bottom">
+        <div class="pitch-card-name">${p.name||'?'}</div>
+        <div class="pitch-card-pos">${p.position||''} #${p.number||'?'}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ===== RENDER PLAYERS =====
+function renderPlayers(){
+  const grid=document.getElementById('cards-grid');
+  const empty=document.getElementById('empty-players');
+  document.getElementById('count').textContent=players.length;
+  if(!players.length){grid.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+  grid.innerHTML=players.map(p=>`<div class="card-wrapper">
+    ${buildCard(p)}
+    <div class="card-edit" onclick="openEditModal('${p.id}')">✎</div>
+    <div class="card-delete" onclick="deletePlayer('${p.id}')">✕</div>
+  </div>`).join('');
+}
+
+// ===== UPLOAD =====
+window.triggerUpload=function(id){document.getElementById(id).click();};
+window.handleUpload=function(input,type){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    const img=new Image();
+    img.onload=function(){
+      const canvas=document.createElement('canvas');
+      const maxS=type==='photo'?200:100;
+      let w=img.width,h=img.height;
+      if(w>h){if(w>maxS){h=h*maxS/w;w=maxS;}}else{if(h>maxS){w=w*maxS/h;h=maxS;}}
+      canvas.width=w;canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      const b64=canvas.toDataURL('image/png',0.8);
+      imgs[type]=b64;
+      // Update zone preview
+      const zone=document.getElementById('zone-'+type);
+      zone.innerHTML=`<img src="${b64}" style="width:100%;height:100%;object-fit:${type==='club'?'contain':'cover'};border-radius:${type==='photo'?'50%':'6px'}">`;
+      document.getElementById('clear-'+type).style.display='inline-flex';
+      updatePreview();
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+};
+
+window.clearImg=function(type){
+  imgs[type]='';
+  const hints={photo:'📷<br>Photo',flag:'🏳️<br>Pays',club:'🛡️<br>Club'};
+  document.getElementById('zone-'+type).innerHTML=`<div class="upload-hint-sm">${hints[type]}</div>`;
+  document.getElementById('clear-'+type).style.display='none';
+  document.getElementById('file-'+type).value='';
+  updatePreview();
+};
+
+// ===== MODAL =====
+window.openAddModal=function(){
+  selectedPos='';imgs={photo:'',flag:'',club:''};
+  document.querySelectorAll('.pos-btn').forEach(b=>b.classList.remove('selected'));
+  ['name','number'].forEach(f=>document.getElementById('inp-'+f).value='');
+  ['pac','sho','pas','dri','def','phy'].forEach(s=>document.getElementById('stat-'+s).value='');
+  document.getElementById('inp-pos').value='';
+  document.getElementById('inp-editid').value='';
+  ['photo','flag','club'].forEach(t=>{
+    const hints={photo:'📷<br>Photo',flag:'🏳️<br>Pays',club:'🛡️<br>Club'};
+    document.getElementById('zone-'+t).innerHTML=`<div class="upload-hint-sm">${hints[t]}</div>`;
+    document.getElementById('clear-'+t).style.display='none';
+    document.getElementById('file-'+t).value='';
+  });
+  document.getElementById('modal-add-title').textContent='✨ Nouveau Joueur';
+  document.getElementById('btn-save-player').textContent='✔ Ajouter';
+  updatePreview();
+  document.getElementById('modal-add').classList.add('open');
+};
+
+window.openEditModal=function(id){
+  const p=players.find(x=>x.id===id);if(!p)return;
+  selectedPos=p.position||'';
+  imgs={photo:p.photo||'',flag:p.flag||'',club:p.club||''};
+  document.querySelectorAll('.pos-btn').forEach(b=>b.classList.toggle('selected',b.textContent===selectedPos));
+  document.getElementById('inp-name').value=p.name||'';
+  document.getElementById('inp-number').value=p.number||'';
+  document.getElementById('inp-pos').value=p.position||'';
+  document.getElementById('inp-editid').value=p.id;
+  ['pac','sho','pas','dri','def','phy'].forEach(s=>document.getElementById('stat-'+s).value=p[s]||'');
+  ['photo','flag','club'].forEach(t=>{
+    const hints={photo:'📷<br>Photo',flag:'🏳️<br>Pays',club:'🛡️<br>Club'};
+    const zone=document.getElementById('zone-'+t);
+    document.getElementById('file-'+t).value='';
+    if(imgs[t]){
+      zone.innerHTML=`<img src="${imgs[t]}" style="width:100%;height:100%;object-fit:${t==='club'?'contain':'cover'};border-radius:${t==='photo'?'50%':'6px'}">`;
+      document.getElementById('clear-'+t).style.display='inline-flex';
+    } else {
+      zone.innerHTML=`<div class="upload-hint-sm">${hints[t]}</div>`;
+      document.getElementById('clear-'+t).style.display='none';
+    }
+  });
+  document.getElementById('modal-add-title').textContent='✏️ Modifier le Joueur';
+  document.getElementById('btn-save-player').textContent='✔ Sauvegarder';
+  updatePreview();
+  document.getElementById('modal-add').classList.add('open');
+};
+
+window.selectPos=function(btn,pos){
+  document.querySelectorAll('.pos-btn').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected');selectedPos=pos;
+  document.getElementById('inp-pos').value=pos;
+  updatePreview();
+};
+
+function updatePreview(){
+  const p={
+    name:document.getElementById('inp-name').value||'Prénom',
+    number:document.getElementById('inp-number').value||'?',
+    position:selectedPos||'POS',
+    photo:imgs.photo,flag:imgs.flag,club:imgs.club,
+    pac:parseInt(document.getElementById('stat-pac').value)||null,
+    sho:parseInt(document.getElementById('stat-sho').value)||null,
+    pas:parseInt(document.getElementById('stat-pas').value)||null,
+    dri:parseInt(document.getElementById('stat-dri').value)||null,
+    def:parseInt(document.getElementById('stat-def').value)||null,
+    phy:parseInt(document.getElementById('stat-phy').value)||null,
+  };
+  document.getElementById('preview-wrapper').innerHTML=buildCard(p,true);
+}
+window.updatePreview=updatePreview;
+
+window.savePlayer=async function(){
+  const name=document.getElementById('inp-name').value.trim();
+  const number=document.getElementById('inp-number').value;
+  const pos=selectedPos;
+  const editId=document.getElementById('inp-editid').value;
+  if(!name){toast('⚠️ Saisis un prénom !');return;}
+  if(!pos){toast('⚠️ Sélectionne un poste !');return;}
+  if(!number){toast('⚠️ Saisis un numéro !');return;}
+  const playerData={
+    name,number:parseInt(number),position:pos,
+    photo:imgs.photo,flag:imgs.flag,club:imgs.club,
+    pac:parseInt(document.getElementById('stat-pac').value)||null,
+    sho:parseInt(document.getElementById('stat-sho').value)||null,
+    pas:parseInt(document.getElementById('stat-pas').value)||null,
+    dri:parseInt(document.getElementById('stat-dri').value)||null,
+    def:parseInt(document.getElementById('stat-def').value)||null,
+    phy:parseInt(document.getElementById('stat-phy').value)||null,
+  };
+  if(editId){
+    const idx=players.findIndex(p=>p.id===editId);
+    if(idx!==-1)players[idx]={...players[idx],...playerData};
+    toast('✅ '+name+' modifié !');
+  } else {
+    if(players.length>=8){toast('⚠️ Max 8 joueurs !');return;}
+    players.push({id:Date.now().toString(),...playerData});
+    toast('🎉 '+name+' ajouté !');
+  }
+  closeModal('modal-add');
+  await saveToFirebase();
+};
+
+window.deletePlayer=async function(id){
+  players=players.filter(p=>p.id!==id);
+  Object.keys(lineup).forEach(k=>{if(lineup[k]===id)delete lineup[k];});
+  await saveToFirebase();
+};
+
+window.resetAll=async function(){
+  if(!confirm('Remettre à zéro toute l\'équipe ?'))return;
+  players=[];lineup={};await saveToFirebase();toast('🗑 Réinitialisé');
+};
+
+// ===== TABS =====
+window.switchTab=function(tab,btn){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('view-'+tab).classList.add('active');
+  btn.classList.add('active');
+  if(tab==='pitch')renderPitch();
+};
+
+// ===== PITCH =====
+window.changeFormation=async function(f){
+  currentFormation=f;
+  const slots=FORMATIONS[f];
+  Object.keys(lineup).forEach(k=>{if(!slots.find(s=>s.id===k))delete lineup[k];});
+  await saveToFirebase();renderPitch();
+};
+
+function renderPitch(){
+  const slots=FORMATIONS[currentFormation];
+  const container=document.getElementById('pitch-slots');
+  container.innerHTML=slots.map(slot=>{
+    const pid=lineup[slot.id];
+    const player=pid?players.find(p=>p.id===pid):null;
+    if(player)return `<div class="pos-slot has-player" style="left:${slot.x}%;top:${slot.y}%">
+      <div style="position:relative">${buildMiniCard(player)}<div class="slot-remove" onclick="removeFromSlot('${slot.id}')">✕</div></div>
+    </div>`;
+    return `<div class="pos-slot" style="left:${slot.x}%;top:${slot.y}%" onclick="openAssign('${slot.id}','${slot.label}')">
+      <div class="empty-slot-circle">+</div>
+      <div class="slot-label">${slot.label}</div>
+    </div>`;
+  }).join('');
+  renderBench();
+}
+
+window.removeFromSlot=async function(slotId){delete lineup[slotId];await saveToFirebase();renderPitch();};
+
+function renderBench(){
+  const inLineup=new Set(Object.values(lineup));
+  const bench=players.filter(p=>!inLineup.has(p.id));
+  const list=document.getElementById('bench-list');
+  if(!bench.length){list.innerHTML='<div class="bench-empty">✅ Tous sur le terrain</div>';return;}
+  list.innerHTML=bench.map(p=>`<div class="bench-item">
+    <div class="bench-avatar">${p.photo?`<img src="${p.photo}" alt="">`:getInitials(p.name)}</div>
+    <div class="bench-info"><div class="bench-name">${p.name}</div><div class="bench-pos">${p.position} · ${calcRating(p)}</div></div>
+    <div class="bench-num">#${p.number}</div>
+  </div>`).join('');
+}
+
+window.openAssign=function(slotId,label){
+  assigningSlot=slotId;
+  const inLineup=new Set(Object.values(lineup));
+  const available=players.filter(p=>!inLineup.has(p.id));
+  document.getElementById('assign-title').textContent='Slot '+label+' — Choisir';
+  const list=document.getElementById('assign-list');
+  if(!available.length){list.innerHTML='<p style="color:var(--muted);font-size:14px;text-align:center;padding:20px 0">Aucun joueur disponible.</p>';
+  }else{list.innerHTML=available.map(p=>`<div class="assign-item" onclick="assignPlayer('${p.id}')">
+    <div class="bench-avatar">${p.photo?`<img src="${p.photo}" alt="">`:getInitials(p.name)}</div>
+    <div class="bench-info"><div class="bench-name">${p.name}</div><div class="bench-pos">${p.position}</div></div>
+    <div class="bench-num">#${p.number}</div>
+    <span style="color:var(--gold);font-family:'Bebas Neue';font-size:20px">${calcRating(p)}</span>
+  </div>`).join('');}
+  document.getElementById('modal-assign').classList.add('open');
+};
+
+window.assignPlayer=async function(pid){
+  if(assigningSlot){lineup[assigningSlot]=pid;await saveToFirebase();}
+  closeModal('modal-assign');renderPitch();
+};
+
+window.closeModal=function(id){document.getElementById(id).classList.remove('open');assigningSlot=null;};
+window.copyLink=function(){navigator.clipboard.writeText(window.location.href).then(()=>toast('🔗 Lien copié !')).catch(()=>toast('Copie le lien dans la barre d\'adresse'));};
+
+function toast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2800);}
+
+document.querySelectorAll('.modal-overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)closeModal(o.id);}));
+window.addEventListener('resize',()=>{if(document.getElementById('view-pitch').classList.contains('active'))renderPitch();});
+</script>
+</body>
+</html>
